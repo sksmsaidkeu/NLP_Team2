@@ -3,6 +3,7 @@ import os
 import statistics
 import sys
 import chromadb
+import dino
 from PIL import Image
 from sentence_transformers import SentenceTransformer
 
@@ -15,7 +16,10 @@ img_col = client.get_collection("frames_image", embedding_function=None)
 txt_col = client.get_collection("videos_text", embedding_function=None)
 img_model = SentenceTransformer(img_col.metadata["text_model"])  # 질의 → 이미지 공간 (다국어 CLIP)
 txt_model = SentenceTransformer(txt_col.metadata["text_model"])  # 질의 → 설명 공간 (bge-m3)
-pic_model = SentenceTransformer(img_col.metadata["image_model"])  # 질의 이미지 → 이미지 공간 (CLIP)
+dino_col = client.get_collection("frames_dino", embedding_function=None)  # 사진 → 건물 식별용 (CLIP보다 정확: 52%→80%)
+n_frames = {}  # 건물별 프레임 수. 투표를 √n으로 나눠 프레임 많은 건물로의 쏠림을 줄임
+for m in dino_col.get(include=["metadatas"])["metadatas"]:
+    n_frames[m["character"]] = n_frames.get(m["character"], 0) + 1
 
 
 def pad_square(img, color=(255, 255, 255)):
@@ -37,11 +41,11 @@ def vote(hits):
 
 def identify_building(img, k=10):
     # ponytail: 상위 k 프레임의 유사도 합으로 투표. 한 영상 프레임이 몰리면 그 영상이 좌우함 → 필요하면 영상당 1표로
-    q = pic_model.encode([pad_square(img)], normalize_embeddings=True).tolist()
-    r = img_col.query(query_embeddings=q, n_results=k, include=["metadatas", "distances"])
+    q = dino.embed([pad_square(img)]).tolist()
+    r = dino_col.query(query_embeddings=q, n_results=k, include=["metadatas", "distances"])
     hits = [(m["character"], 1 - d, m["video_id"], rid)
             for rid, m, d in zip(r["ids"][0], r["metadatas"][0], r["distances"][0])]
-    return vote((c, s) for c, s, _, _ in hits), hits
+    return [(c, v / n_frames[c] ** 0.5) for c, v in vote((c, s) for c, s, _, _ in hits)], hits
 
 
 def building_filter(query):
