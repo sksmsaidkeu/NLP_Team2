@@ -19,18 +19,15 @@ if up:
 if up and question and st.button("물어보기"):
     with st.spinner("식별·검색·생성 중..."):
         out = generate.ask(img, question, model=model, k=k, mode=mode, alpha=alpha)
-    name, top = out["votes"][0][0], out["votes"][0][1] / sum(v for _, v in out["votes"])
-    if top < CONF_WARN:
-        st.warning(f"건물 식별이 불확실합니다 ({name}관 {top:.0%}). 답이 다른 건물의 정보일 수 있으니 아래 식별 표를 확인하세요.")
     st.subheader("답변")
-    st.write(out["answer"])
-    st.subheader("건물 식별")
-    st.table({"건물": [c for c, _ in out["votes"]], "투표 점수": [round(v, 3) for _, v in out["votes"]]})
-    st.subheader("닮은 장소")
-    for b, sim, desc in out["places"]:
-        with st.expander(f"{b}관 (유사도 {sim:.3f})"):
-            st.write(desc)
-    st.subheader("근거 청크")
-    for sim, b, sec, doc in out["chunks"]:
-        with st.expander(f"{b}관 · {sec} (유사도 {sim:.3f})"):
-            st.write(doc)
+    st.write(out)
+#     st.subheader("건물 식별")
+#     st.table({"건물": [c for c, _ in out["votes"]], "투표 점수": [round(v, 3) for _, v in out["votes"]]})
+#     st.subheader("닮은 장소")
+#     for b, sim, desc in out["places"]:
+#         with st.expander(f"{b}관 (유사도 {sim:.3f})"):
+#             st.write(desc)
+#     st.subheader("근거 청크")
+#     for sim, b, sec, doc in out["chunks"]:
+#         with st.expander(f"{b}관 · {sec} (유사도 {sim:.3f})"):
+#             st.write(doc)

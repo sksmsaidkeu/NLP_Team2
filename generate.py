@@ -51,6 +51,7 @@ def rank_chunks(cands, share, mode, alpha, k):
 
 def ask(img, question, model="claude-haiku-5-5", k=3, mode="filter", alpha=0.5, building=None):
     # 사진 → 건물 식별 → 청크 검색(mode) → 생성. building을 주면 식별을 건너뜀(식별 오류와 검색/생성 오류를 분리해 볼 때)
+    # 반환: 답변 문자열(answer)만. 식별 점수·근거 청크·닮은 장소는 돌려주지 않음
     import chromadb
     import search  # 모델 로드가 무거워서 여기서 import
     doc_col = chromadb.HttpClient(host="localhost", port=8000).get_collection("building_docs", embedding_function=None)
@@ -66,8 +67,7 @@ def ask(img, question, model="claude-haiku-5-5", k=3, mode="filter", alpha=0.5, 
              for doc, m, d in zip(r["documents"][0], r["metadatas"][0], r["distances"][0])]
     top = rank_chunks(cands, share, mode, alpha, k)
     places = near_places(hits, search.img_col, max(share, key=share.get) if mode == "filter" else None)
-    return {"votes": votes, "chunks": top, "places": places,
-            "answer": answer(question, [c[3] for c in top], model, places)}
+    return answer(question, [c[3] for c in top], model, places)
 
 
 if __name__ == "__main__":
@@ -84,5 +84,4 @@ if __name__ == "__main__":
     assert near_places([], FakeCol()) == []
     # 사용: python generate.py 사진경로 "질문" [filter|weighted]
     img, question, *mode = sys.argv[1:]
-    out = ask(Image.open(img), question, mode=(mode or ["filter"])[0])
-    print(out["votes"], [(c[1], c[2], round(c[0], 3)) for c in out["chunks"]], "", out["answer"], sep="\n")
+    print(ask(Image.open(img), question, mode=(mode or ["filter"])[0]))
