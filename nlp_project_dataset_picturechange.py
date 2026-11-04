@@ -18,7 +18,8 @@ out = Path(__file__).parent / "frames"
 out.mkdir(exist_ok=True)
 
 rows = []
-for r in pd.read_excel(root / "metadata.xlsx").itertuples():
+meta = pd.read_excel(root / "metadata.xlsx")
+for r in meta[meta.type.isin(["video", "photo"])].itertuples():  # 아래 요약표 행 제외
     src = root / r.video_id
     stem = Path(r.video_id).with_suffix("").as_posix().replace("/", "_")
     base = dict(video_id=r.video_id, character=r.character, time=r.time,

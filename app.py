@@ -29,10 +29,9 @@ if up:
     ranking, hits = search.identify_building(img)
     left, right = st.columns([1, 2])
     left.image(img, width="stretch")
-    total = sum(s for _, s in ranking)
     right.markdown(f"### 이 사진은 **{ranking[0][0]}관**으로 보입니다")
     for c, s in ranking:
-        right.write(f"{c}: {s / total:.0%}  (상위 {len(hits)}프레임 유사도 합 {s:.2f})")
+        right.write(f"{c}: {s:.0%}")
     for col, (c, sim, vid, frame) in zip(st.columns(5), hits[:5]):
         col.image(os.path.join(FRAMES, frame), width="stretch")
         col.caption(f"{c} · {vid} · {sim:.3f}")
