@@ -15,7 +15,7 @@ loc_a = st.sidebar.checkbox("A: 위치 적합도 점수", disabled=mode != "echo
 k = st.sidebar.slider("근거 청크 수", 1, 6, 3, disabled=mode == "echo")
 
 up = st.file_uploader("건물 사진", type=["jpg", "jpeg", "png"])
-question = st.text_input("질문", placeholder="이 건물은 누구를 기리기 위해 만든 건물이야?")
+question = st.text_input("질문", placeholder="예/아니오로 답할 수 있게: 이 건물에 엘리베이터가 있어?")
 if up:
     img = Image.open(up)
     st.image(img, width=360)
