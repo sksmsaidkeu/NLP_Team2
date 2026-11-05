@@ -111,4 +111,4 @@ if __name__ == "__main__":
         print(f"\n## {query}  (filter: {building_filter(query)})")
         for vid, s, (isim, frame, _), (tsim, _, sent) in search(query):
             print(f"  z={s:5.2f}  img={isim:.3f}  txt={tsim:.3f}  {vid}\n"
-                  f"      └ {sent[:70]}\n      └ {os.path.join(os.path.dirname(os.path.abspath(__file__)), 'frames', frame)}")
+                  f"      └ {sent[:70]}\n      └ {os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'frames', frame)}")

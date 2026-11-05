@@ -1,10 +1,14 @@
 import pandas  # noqa: F401  torch보다 먼저 (build_chroma.py 참고)
 import os
+import sys
 import streamlit as st
 from PIL import Image
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 프로젝트 루트
+sys.path.insert(0, os.path.join(ROOT, "rag"))  # dino · search · generate 모듈
 import search  # import 시 모델 3개 로드. Streamlit 재실행 때도 모듈은 캐시돼 한 번만 로드됨
 
-FRAMES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "frames")
+FRAMES = os.path.join(ROOT, "data", "frames")
 
 st.set_page_config(page_title="캠퍼스 장소 검색", layout="wide")
 st.title("캠퍼스 장소 검색")

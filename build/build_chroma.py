@@ -10,7 +10,8 @@ IMAGE_MODEL = "clip-ViT-B-32"
 # 컬렉션 메타데이터 "text_model" = 그 컬렉션을 검색할 때 질의를 임베딩하는 모델 (search.py가 읽음)
 TEXT_MODEL = "sentence-transformers/clip-ViT-B-32-multilingual-v1"  # 질의 → 이미지 공간
 DESC_MODEL = "BAAI/bge-m3"  # 설명 문장·질의 → 텍스트 전용 공간
-HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 프로젝트 루트
+DATA = os.path.join(ROOT, "data")  # frames, building_docs, splits.csv 등
 PAD_COLOR = (255, 255, 255)  # 흰색 letterbox
 
 
@@ -33,13 +34,13 @@ def recreate(name, metadata):
     )
 
 
-df = pd.read_csv(os.path.join(HERE, "frames.csv"))
+df = pd.read_csv(os.path.join(DATA, "frames.csv"))
 device = "cuda" if torch.cuda.is_available() else "cpu"
 client = chromadb.HttpClient(host="localhost", port=8000)
 
 # 1) 프레임 이미지: 프레임 1개 = 레코드 1개
 model = SentenceTransformer(IMAGE_MODEL, device=device)
-images = [pad_square(Image.open(os.path.join(HERE, "frames", p))) for p in df.frame_path]
+images = [pad_square(Image.open(os.path.join(DATA, "frames", p))) for p in df.frame_path]
 assert all(im.width == im.height for im in images)
 emb = model.encode(images, batch_size=32, normalize_embeddings=True, show_progress_bar=True)
 

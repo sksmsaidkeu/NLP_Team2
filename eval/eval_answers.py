@@ -1,12 +1,13 @@
 import sys, os, io, json, base64
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # eval_retrieval
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "rag"))  # generate · search
 import pandas as pd, numpy as np
 import eval_retrieval as E, generate, search
 from PIL import Image
 STEP = int(sys.argv[1]) if len(sys.argv) > 1 else 1      # 파일럿: 행을 STEP개마다 하나씩
 OUT = sys.argv[2] if len(sys.argv) > 2 else r"C:\Users\happy\AppData\Local\Temp\ans.jsonl"
-ev = pd.read_excel(os.path.join(E.HERE, "eval_evidence.xlsx"))
-m = pd.read_excel(os.path.join(E.HERE, "nlp_project_dataset", "metadata.xlsx"))
+ev = pd.read_excel(os.path.join(E.DATA, "eval_evidence.xlsx"))
+m = pd.read_excel(os.path.join(E.ROOT, "nlp_project_dataset", "metadata.xlsx"))
 mi = m.set_index("video_id")
 ev["truth"] = [mi.loc[r.video_id, "ground_truth_" + r.유형] for r in ev.itertuples()]   # 최신 metadata 정답
 ev["cat"] = ev.확정_섹션.map(lambda s: s if s in ["없음", "없음(부정형)", "식별만"] else "청크")
@@ -42,7 +43,7 @@ with open(OUT, "a", encoding="utf-8") as f:
         for cond in ["vanilla"] + list(conds):
             if (n, cond) in done: continue
             if cond == "vanilla":
-                t, tok = vanilla(os.path.join(E.HERE, "frames", fid), r.질문)
+                t, tok = vanilla(os.path.join(E.DATA, "frames", fid), r.질문)
             else:
                 chunks, b = conds[cond]
                 places = [] if b is None else generate.near_places(hits, search.img_col, b)

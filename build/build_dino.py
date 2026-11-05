@@ -1,11 +1,15 @@
 import pandas as pd  # torch보다 먼저 import해야 함 (build_chroma.py 참고)
 import os
+import sys
 import chromadb
 from PIL import Image
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 프로젝트 루트
+DATA = os.path.join(ROOT, "data")  # frames, building_docs, splits.csv 등
+sys.path.insert(0, os.path.join(ROOT, "rag"))  # dino · search · generate 모듈
 import dino
 
 NAME = "frames_dino"  # 건물 식별 전용. 다른 컬렉션은 건드리지 않고 이것만 다시 만든다
-HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def pad_square(img, color=(255, 255, 255)):
@@ -17,8 +21,8 @@ def pad_square(img, color=(255, 255, 255)):
     return canvas
 
 
-df = pd.read_csv(os.path.join(HERE, "frames.csv"))
-emb = dino.embed([pad_square(Image.open(os.path.join(HERE, "frames", p))) for p in df.frame_path])
+df = pd.read_csv(os.path.join(DATA, "frames.csv"))
+emb = dino.embed([pad_square(Image.open(os.path.join(DATA, "frames", p))) for p in df.frame_path])
 
 client = chromadb.HttpClient(host="localhost", port=8000)
 if NAME in [c.name for c in client.list_collections()]:

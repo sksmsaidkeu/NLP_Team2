@@ -1,6 +1,11 @@
 import pandas  # noqa: F401  torch보다 먼저 (build_chroma.py 참고)
+import os
+import sys
 import streamlit as st
 from PIL import Image
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 프로젝트 루트
+sys.path.insert(0, os.path.join(ROOT, "rag"))  # dino · search · generate 모듈
 import generate
 
 CONF_WARN = 0.8  # 영상 78개 평가에서 식별 오답은 모두 1위 비중이 0.8 미만. 정답 일부도 미만이라 오답 확정이 아닌 주의 표시

@@ -1,6 +1,6 @@
-"""eval_evidence_draft.xlsx에 정답 근거 청크 라벨을 붙여 eval_evidence.xlsx로 저장.
+"""data/eval_evidence_draft.xlsx에 정답 근거 청크 라벨을 붙여 data/eval_evidence.xlsx로 저장.
 
-라벨은 building_docs/*.md를 직접 읽고 사람이 정한 값이다(재정렬기·검색 점수는 쓰지 않음 → 검색 평가와 순환하지 않게).
+라벨은 data/building_docs/*.md를 직접 읽고 사람이 정한 값이다(재정렬기·검색 점수는 쓰지 않음 → 검색 평가와 순환하지 않게).
 형식  행번호:청크번호:확신도:비고   (행번호 = 초안 xlsx의 첫 등장 행 index, 같은 건물·유형·질문·정답은 같은 라벨)
  청크번호  3 / 1;3 (여러 개) / 김수환/2 (다른 건물)
            N = 정답 근거 청크 없음(비고에 보강할 곳) / NEG = 없다는 답이라 문서에 근거가 없는 게 근거 / ID = 건물만 식별하면 됨(청크 불필요)
@@ -11,7 +11,8 @@ import os
 
 import chromadb
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 프로젝트 루트
+DATA = os.path.join(ROOT, "data")  # frames, building_docs, splits.csv 등
 FILE = {"김수환": "김수환관.md", "니콜스": "니콜스관.md", "다솔": "다솔관.md", "마리아": "마리아관.md", "밤비노": "밤비노관.md",
         "비루투스": "비르투스관.md", "중앙도서관": "중앙도서관.md", "학생회관": "학생회관.md"}
 
@@ -88,7 +89,7 @@ if __name__ == "__main__":
     col = chromadb.HttpClient(host="localhost", port=8000).get_collection("building_docs", embedding_function=None)
     g = col.get(include=["metadatas"])
     sec = {i: m["section"] for i, m in zip(g["ids"], g["metadatas"])}
-    d = pd.read_excel(os.path.join(HERE, "eval_evidence_draft.xlsx"))
+    d = pd.read_excel(os.path.join(DATA, "eval_evidence_draft.xlsx"))
     key = lambda r: (r.건물, r.유형, r.질문, r.정답)
     lab = {}
     for item in LABELS.replace("\n", "|").split("|"):
@@ -113,7 +114,7 @@ if __name__ == "__main__":
     fix = {key(d.loc[i]): v for i, v in CORRECT.items()}
     d["정답_정정"] = [fix.get(key(r), "") for r in d.itertuples()]
     cols = ["video_id", "건물", "유형", "질문", "정답", "정답_정정", "확정_섹션", "확신도", "비고", "후보1", "후보2"]
-    out_path = os.path.join(HERE, "eval_evidence.xlsx")
+    out_path = os.path.join(DATA, "eval_evidence.xlsx")
     d[cols].to_excel(out_path, index=False)
     print(len(d), "rows ->", out_path)
     kind = d.확정_섹션.map(lambda x: x if x in ("없음", "없음(부정형)", "식별만") else "청크")

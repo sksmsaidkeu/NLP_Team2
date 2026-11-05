@@ -1,16 +1,17 @@
 """명세 Retrieval 평가: DB=train+val 영상 프레임, 질의=test 영상 프레임(DINOv2).
 프레임별 건물 max-pooling 유사도 → 8건물 순위 → Recall@1/2/4·MRR, 영상 단위 평균 → seed 평균±표준편차.
-실행: python eval_spec_retrieval.py  (Docker chroma 필요)
+실행: python eval/eval_spec_retrieval.py  (Docker chroma 필요)
 """
 import pandas as pd  # torch보다 먼저 (build_chroma.py 참고)
 import os
 import numpy as np
 import chromadb
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 프로젝트 루트
+DATA = os.path.join(ROOT, "data")  # frames, building_docs, splits.csv 등
 KS = (1, 2, 4)
 
-sp = pd.read_csv(os.path.join(HERE, "splits.csv"))
+sp = pd.read_csv(os.path.join(DATA, "splits.csv"))
 g = chromadb.HttpClient(host="localhost", port=8000).get_collection("frames_dino").get(include=["embeddings", "metadatas"])
 fr = pd.DataFrame(g["metadatas"])
 X = np.asarray(g["embeddings"], dtype=np.float32)  # 단위벡터라 내적 = 코사인
@@ -44,4 +45,4 @@ res = pd.DataFrame(rows)
 res.loc["mean"], res.loc["std"] = res.mean(), res.std(ddof=0)
 res.loc["random"] = [1 / 8, 2 / 8, 4 / 8, np.mean([1 / r for r in range(1, 9)])]  # 0.125/0.25/0.5/0.34
 print(res.round(3).to_string())
-res.round(4).to_csv(os.path.join(HERE, "results", "eval_spec_retrieval_results.csv"), encoding="utf-8-sig")
+res.round(4).to_csv(os.path.join(ROOT, "results", "eval_spec_retrieval_results.csv"), encoding="utf-8-sig")

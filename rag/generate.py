@@ -164,6 +164,6 @@ if __name__ == "__main__":
     assert near_places(h, FakeCol()) == [("A", .9, "df1"), ("B", .7, "df3"), ("A", .6, "df4")]  # v1 중복 제거
     assert near_places(h, FakeCol(), building="A", n=2) == [("A", .9, "df1"), ("A", .6, "df4")]  # B 제외
     assert near_places([], FakeCol()) == []
-    # 사용: python generate.py 사진경로 "질문" [echo|filter|weighted]  (기본 echo+재정렬기)
+    # 사용: python rag/generate.py 사진경로 "질문" [echo|filter|weighted]  (기본 echo+재정렬기)
     img, question, *mode = sys.argv[1:]
     print(ask(Image.open(img), question, mode=(mode or ["echo"])[0]))

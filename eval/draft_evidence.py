@@ -1,4 +1,4 @@
-"""평가용 정답 청크 초안: metadata.xlsx의 (영상, inside/outside) 질문마다 근거 청크 후보를 뽑아 eval_evidence_draft.xlsx로 저장.
+"""평가용 정답 청크 초안: metadata.xlsx의 (영상, inside/outside) 질문마다 근거 청크 후보를 뽑아 data/eval_evidence_draft.xlsx로 저장.
 
 방법: ① 정답 문자열(쉼표로 나눈 항목)이 그 건물 청크에 얼마나 들어 있는지 ② 재정렬기 점수(질문+정답 ↔ 청크).
 둘을 합쳐 1·2순위 후보를 적고, 확신이 낮으면 검토 필요=Y. 최종 확정은 사람이 '확정_섹션' 열에 적는다.
@@ -8,11 +8,15 @@ import pandas as pd  # torch보다 먼저 (build_chroma.py 참고)
 import os
 import re
 
+import sys
+
 import chromadb
 
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 프로젝트 루트
+DATA = os.path.join(ROOT, "data")  # frames, building_docs, splits.csv 등
+sys.path.insert(0, os.path.join(ROOT, "rag"))  # dino · search · generate 모듈
 import generate
 
-HERE = os.path.dirname(os.path.abspath(__file__))
 SKIP_STR = {"예", "아니오", "아니요", "없다", "있다", "존재한다", "존재하지않는다"}  # 문자열 일치가 의미 없는 짧은 답
 
 
@@ -48,7 +52,7 @@ if __name__ == "__main__":
     for cid, doc, m in zip(d["ids"], d["documents"], d["metadatas"]):
         by_b.setdefault(m["character"], []).append((cid, m["section"], doc))
 
-    meta = pd.read_excel(os.path.join(HERE, "nlp_project_dataset", "metadata.xlsx"))
+    meta = pd.read_excel(os.path.join(ROOT, "nlp_project_dataset", "metadata.xlsx"))
     meta = meta[meta.type == "video"]
     rows = []
     for r in meta.itertuples():
@@ -75,7 +79,7 @@ if __name__ == "__main__":
                              후보2=f"{c2} | {s2}", 후보2_점수=round(sc2, 2), 장소설명에_정답=in_desc,
                              검토필요="N" if sure else "Y", 확정_섹션=""))
     out = pd.DataFrame(rows)
-    path = os.path.join(HERE, "eval_evidence_draft.xlsx")
+    path = os.path.join(DATA, "eval_evidence_draft.xlsx")
     out.to_excel(path, index=False)
     print(len(out), "rows ->", path)
     print(out.groupby(["유형", "근거출처"]).size().unstack(fill_value=0))

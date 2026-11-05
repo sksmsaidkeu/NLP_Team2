@@ -1,4 +1,4 @@
-"""metadata.xlsx의 영상 -> 균등 분할 프레임, HEIC -> jpg. 결과: frames/ + frames.csv
+"""metadata.xlsx의 영상 -> 균등 분할 프레임, HEIC -> jpg. 결과: data/frames/ + data/frames.csv
 
 영상당 장수 N = clamp(ceil(길이/SEC_PER_FRAME), MIN_N, MAX_N), N등분한 구간의 중앙에서 1장씩.
 """
@@ -13,9 +13,10 @@ from pillow_heif import register_heif_opener
 SEC_PER_FRAME, MIN_N, MAX_N = 1.0, 10, 20
 
 register_heif_opener()
-root = Path(__file__).parent / "nlp_project_dataset"
-out = Path(__file__).parent / "frames"
-out.mkdir(exist_ok=True)
+ROOT = Path(__file__).resolve().parent.parent  # 프로젝트 루트
+root = ROOT / "nlp_project_dataset"
+out = ROOT / "data" / "frames"
+out.mkdir(parents=True, exist_ok=True)
 
 rows = []
 meta = pd.read_excel(root / "metadata.xlsx")
@@ -44,5 +45,5 @@ for r in meta[meta.type.isin(["video", "photo"])].itertuples():  # 아래 요약
     cap.release()
 
 df = pd.DataFrame(rows)
-df.to_csv(Path(__file__).parent / "frames.csv", index=False, encoding="utf-8-sig")
+df.to_csv(ROOT / "data" / "frames.csv", index=False, encoding="utf-8-sig")
 print(len(df), "frames,", df.video_id.nunique(), "sources")

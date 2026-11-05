@@ -7,12 +7,13 @@ import torch
 from sentence_transformers import SentenceTransformer
 
 DESC_MODEL = "BAAI/bge-m3"  # videos_text와 같은 텍스트 공간
-HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 프로젝트 루트
+DATA = os.path.join(ROOT, "data")  # frames, building_docs, splits.csv 등
 NAME = "building_docs"  # frames_image / videos_text는 건드리지 않고 이 컬렉션만 다시 만든다
 
 # building_docs/*.md: front matter의 building 값 + "## 섹션" 단위 청크 1개 = 레코드 1개
 rows = []
-for path in sorted(glob.glob(os.path.join(HERE, "building_docs", "*.md"))):
+for path in sorted(glob.glob(os.path.join(DATA, "building_docs", "*.md"))):
     text = open(path, encoding="utf-8").read()
     building = re.search(r"^building:\s*(.+)$", text, re.M).group(1).strip()
     title = re.search(r"^# (.+)$", text, re.M).group(1).strip()

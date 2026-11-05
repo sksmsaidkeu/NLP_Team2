@@ -1,8 +1,8 @@
-"""검색 비교 평가: 정답 청크(eval_evidence.xlsx의 확정_섹션)가 1·3위 안에 드는 비율.
+"""검색 비교 평가: 정답 청크(data/eval_evidence.xlsx의 확정_섹션)가 1·3위 안에 드는 비율.
 
 대상은 청크 정답이 있는 행. 질의 사진은 그 영상의 프레임 3장(25/50/75%)이고, 식별·닮은 장소 설명에서 그 영상 자신은 뺀다(LOO).
 생성은 하지 않고 검색만 본다. 방법마다 generate.py의 rank_chunks/tune_cands를 그대로 부른다.
-사용: python eval_retrieval.py [방법1,방법2,...]   → 표 출력 + eval_retrieval_results.csv (방법을 고르면 csv는 안 씀)
+사용: python eval/eval_retrieval.py [방법1,방법2,...]   → 표 출력 + results/eval_retrieval_results.csv (방법을 고르면 csv는 안 씀)
 """
 import pandas as pd  # torch보다 먼저 (build_chroma.py 참고)
 import os
@@ -11,10 +11,12 @@ import sys
 import chromadb
 import numpy as np
 
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 프로젝트 루트
+DATA = os.path.join(ROOT, "data")  # frames, building_docs, splits.csv 등
+sys.path.insert(0, os.path.join(ROOT, "rag"))  # dino · search · generate 모듈
 import generate
 import search
 
-HERE = os.path.dirname(os.path.abspath(__file__))
 client = chromadb.HttpClient(host="localhost", port=8000)
 
 # 청크 전체 (id, 문서, 임베딩, 건물, 섹션)
@@ -30,7 +32,7 @@ F_ID, F_EMB = d["ids"], np.array(d["embeddings"])
 F_BLD = np.array([m["character"] for m in d["metadatas"]])
 F_VID = np.array([m["video_id"] for m in d["metadatas"]])
 F_IDX = {f: i for i, f in enumerate(F_ID)}
-frames = pd.read_csv(os.path.join(HERE, "frames.csv"))
+frames = pd.read_csv(os.path.join(DATA, "frames.csv"))
 
 METHODS = {  # 이름: (mode, alpha, rerank, loc_b, loc_a, oracle)
     "text-only(전 건물)": ("weighted", 0.0, 0, 0, 0, 0),
@@ -75,7 +77,7 @@ def retrieve(qvec, question, votes, hits, true_b, mode, alpha, rerank, loc_b, lo
 
 
 if __name__ == "__main__":
-    ev = pd.read_excel(os.path.join(HERE, "eval_evidence.xlsx"))
+    ev = pd.read_excel(os.path.join(DATA, "eval_evidence.xlsx"))
     ev = ev[~ev.확정_섹션.isin(["없음", "없음(부정형)", "식별만"])].reset_index(drop=True)
     gold = [{x.split(" | ")[0].strip() for x in s.split(";")} for s in ev.확정_섹션]
     qvecs = search.txt_model.encode(ev.질문.tolist(), normalize_embeddings=True)
@@ -96,7 +98,7 @@ if __name__ == "__main__":
                                  hit1=ids[0] in gold[n], hit3=any(i in gold[n] for i in ids)))
     res = pd.DataFrame(rows)
     if not only:
-        res.to_csv(os.path.join(HERE, "results", "eval_retrieval_results.csv"), index=False, encoding="utf-8-sig")
+        res.to_csv(os.path.join(ROOT, "results", "eval_retrieval_results.csv"), index=False, encoding="utf-8-sig")
 
     per_row = res.groupby(["방법", "row"], sort=False).agg(hit1=("hit1", "mean"), hit3=("hit3", "mean"), 유형=("유형", "first"), 확신도=("확신도", "first")).reset_index()
     print(f"행 {len(ev)}개 (확신 {(ev.확신도 == '확신').sum()}, 애매 {(ev.확신도 == '애매').sum()}), 행당 사진 3장. 식별 정확도 {res.id_ok.mean():.1%}")

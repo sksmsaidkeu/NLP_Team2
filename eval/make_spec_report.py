@@ -1,6 +1,6 @@
 """명세 결과 정리(API 호출 없음): ① 슬라이드 42 양식의 결과 표 results/eval_spec_results_table.csv
 ② seed별·조건별 2x2 Confusion Matrix 그림 results/eval_spec_confusion.png (예/아니오 외의 답 "기타"는 칸에 못 넣어 제목에 건수로 표시, 오답으로 셈)
-입력(results/): eval_spec_retrieval_results.csv, eval_spec_qa_summary.csv, eval_spec_qa_results.jsonl, splits.csv
+입력(results/): eval_spec_retrieval_results.csv, eval_spec_qa_summary.csv, eval_spec_qa_results.jsonl, data/splits.csv
 """
 import pandas as pd  # torch보다 먼저 (build_chroma.py 참고)
 import json
@@ -9,9 +9,9 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-P = lambda f: os.path.join(HERE, f)
-R = lambda f: os.path.join(HERE, "results", f)  # 결과 파일 폴더
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 프로젝트 루트
+P = lambda f: os.path.join(ROOT, "data", f)  # data/
+R = lambda f: os.path.join(ROOT, "results", f)  # 결과 파일 폴더
 plt.rcParams["font.family"] = "Malgun Gothic"
 plt.rcParams["axes.unicode_minus"] = False
 

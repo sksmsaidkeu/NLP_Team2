@@ -1,8 +1,8 @@
 """명세 QA 평가: test 영상마다 inside·outside 예/아니오 질문 2개. context는 place_description만.
 조건: oracle(자기 영상 설명) / echo(사진→상위 3건물 후보 영상 설명 → 재정렬기 → 1개, 자기 영상은 후보에서 제외).
 영상 단위 평균 Accuracy(seed별) → 평균±표준편차, Confusion Matrix(seed 합산).
-실행: python eval_spec_qa.py [seed ...]   (기본 0 1 2 3, Docker chroma·ANTHROPIC_API_KEY 필요)
-호출 결과는 eval_spec_qa_results.jsonl에 쌓여 다시 돌리면 이어서 한다(API 비용 절약).
+실행: python eval/eval_spec_qa.py [seed ...]   (기본 0 1 2 3, Docker chroma·ANTHROPIC_API_KEY 필요)
+호출 결과는 results/eval_spec_qa_results.jsonl에 쌓여 다시 돌리면 이어서 한다(API 비용 절약).
 """
 import pandas as pd  # torch보다 먼저 (build_chroma.py 참고)
 import json
@@ -12,10 +12,13 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 import chromadb
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 프로젝트 루트
+DATA = os.path.join(ROOT, "data")  # frames, building_docs, splits.csv 등
+sys.path.insert(0, os.path.join(ROOT, "rag"))  # dino · search · generate 모듈
 from generate import llm, rerank_scores, minmax
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-RES = os.path.join(HERE, "results")  # 결과 파일 폴더
+RES = os.path.join(ROOT, "results")  # 결과 파일 폴더
 OUT = os.path.join(RES, "eval_spec_qa_results.jsonl")
 MODEL = "claude-haiku-5-5"
 NFRAMES = 3         # 영상당 질의 사진 수 (균등 간격)
@@ -48,8 +51,8 @@ def call(job):
 if __name__ == "__main__":
     assert label("예") == "예" and label(" 아니오.") == "아니오" and label("모르겠다") == "기타" and label("") == "기타"
     seeds = [int(s) for s in sys.argv[1:]] or [0, 1, 2, 3]
-    sp = pd.read_csv(os.path.join(HERE, "splits.csv"))
-    m = pd.read_excel(os.path.join(HERE, "nlp_project_dataset", "metadata.xlsx"), sheet_name=0).set_index("video_id")
+    sp = pd.read_csv(os.path.join(DATA, "splits.csv"))
+    m = pd.read_excel(os.path.join(ROOT, "nlp_project_dataset", "metadata.xlsx"), sheet_name=0).set_index("video_id")
     desc = m.place_description.to_dict()
     qa = {v: [("inside", m.at[v, "query_inside"], m.at[v, "ground_truth_inside"].strip()),
               ("outside", m.at[v, "query_outside"], m.at[v, "ground_truth_outside"].strip())] for v in sp.video_id}

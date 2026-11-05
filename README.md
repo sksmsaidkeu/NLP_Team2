@@ -9,11 +9,11 @@
 ## 폴더 구성
 | 위치 | 내용 |
 |---|---|
-| (최상위 `*.py`) | 데이터 준비·DB 구축·검색·답변·평가 스크립트(아래 표). 서로 import하므로 한 폴더에 둡니다. |
-| `building_docs/` | 건물별 설명 문서(RAG 근거) |
-| `frames/`, `frames.csv` | 영상에서 뽑은 프레임 1555장과 목록 |
-| `splits.csv` | 명세 평가용 영상 분할(seed 0~3) |
-| `eval_evidence*.xlsx` | 질문별 정답 근거 청크 라벨(보충 분석 입력) |
+| `rag/` | 핵심 모듈 3개: `dino.py`(이미지 임베딩), `search.py`(건물 식별·검색), `generate.py`(청크 선택·재정렬·답변) |
+| `apps/` | Streamlit 화면 2개: `app.py`(영상 검색 확인용), `app_qa.py`(질의응답) |
+| `build/` | 프레임 추출과 Chroma DB 구축 스크립트 |
+| `eval/` | 명세 평가, 보충 평가, 정답 청크 라벨링 스크립트 |
+| `data/` | 프로젝트가 쓰는 데이터: `building_docs/`(건물 설명 문서), `frames/`·`frames.csv`(프레임 1555장과 목록), `splits.csv`(명세 평가용 영상 분할), `eval_evidence*.xlsx`(정답 청크 라벨) |
 | `results/` | 평가 결과 파일(csv·jsonl·그림) |
 | `docs/` | 평가 명세서, 가이드 슬라이드, 참고 논문 PDF(PDF는 저장소에서 제외) |
 | `nlp_project_dataset/` | 원본 영상·`metadata.xlsx`(저장소에서 제외) |
@@ -35,40 +35,40 @@
 ### 데이터 준비
 | 파일 | 하는 일 |
 |---|---|
-| `nlp_project_dataset_picturechange.py` | `nlp_project_dataset/metadata.xlsx`의 영상에서 프레임(영상당 10~20장)을 뽑아 `frames/`에 저장하고 `frames.csv`를 만듭니다. HEIC 사진은 jpg로 변환합니다. |
-| `building_docs/*.md` | 건물별 설명 문서(8개). 나무위키와 학교 캠퍼스맵을 정리한 초안이며, 아직 검증 전입니다. |
+| `build/nlp_project_dataset_picturechange.py` | `nlp_project_dataset/metadata.xlsx`의 영상에서 프레임(영상당 10~20장)을 뽑아 `data/frames/`에 저장하고 `data/frames.csv`를 만듭니다. HEIC 사진은 jpg로 변환합니다. |
+| `data/building_docs/*.md` | 건물별 설명 문서(8개). 나무위키와 학교 캠퍼스맵을 정리한 초안이며, 아직 검증 전입니다. |
 
 ### DB 만들기 (Chroma, `localhost:8000`)
 | 파일 | 하는 일 |
 |---|---|
-| `build_chroma.py` | `frames_image`(프레임 CLIP 임베딩)와 `videos_text`(장소 설명 문장 bge-m3 임베딩) 컬렉션을 지우고 새로 만듭니다. |
-| `build_dino.py` | `frames_dino`(프레임 DINOv2 임베딩, 건물 식별용) 컬렉션만 새로 만듭니다. |
-| `build_docs.py` | `building_docs/*.md`를 `## 섹션` 단위로 쪼개 `building_docs` 컬렉션을 새로 만듭니다. |
-| `dino.py` | DINOv2-base로 이미지 임베딩을 계산하는 함수(식별에 쓰임). |
+| `build/build_chroma.py` | `frames_image`(프레임 CLIP 임베딩)와 `videos_text`(장소 설명 문장 bge-m3 임베딩) 컬렉션을 지우고 새로 만듭니다. |
+| `build/build_dino.py` | `frames_dino`(프레임 DINOv2 임베딩, 건물 식별용) 컬렉션만 새로 만듭니다. |
+| `build/build_docs.py` | `data/building_docs/*.md`를 `## 섹션` 단위로 쪼개 `building_docs` 컬렉션을 새로 만듭니다. |
+| `rag/dino.py` | DINOv2-base로 이미지 임베딩을 계산하는 함수(식별에 쓰임). |
 
 ### 검색과 답변
 | 파일 | 하는 일 |
 |---|---|
-| `search.py` | 건물 식별(`identify_building`: 건물별 상위 3프레임 평균 유사도를 softmax로 확률화)과, 텍스트 질의로 영상을 찾는 검색(`search`)을 합니다. 직접 실행하면 자가검사 후 질의를 받습니다. |
-| `generate.py` | 전체 파이프라인 `ask(사진, 질문)`. 청크 선택 방식(`echo`/`filter`/`weighted`)과 재정렬기 옵션을 갖고 있으며, 기본은 `echo` + `bge-reranker-v2-m3`입니다. `python generate.py 사진 "질문"`으로도 실행됩니다. |
-| `app_qa.py` | 사진을 올리고 질문하면 답변만 보여주는 Streamlit 화면(8002). |
-| `app.py` | 텍스트로 영상을 찾고, 사진으로 건물을 식별해 보는 확인용 Streamlit 화면(8001). |
+| `rag/search.py` | 건물 식별(`identify_building`: 건물별 상위 3프레임 평균 유사도를 softmax로 확률화)과, 텍스트 질의로 영상을 찾는 검색(`search`)을 합니다. 직접 실행하면 자가검사 후 질의를 받습니다. |
+| `rag/generate.py` | 전체 파이프라인 `ask(사진, 질문)`. 청크 선택 방식(`echo`/`filter`/`weighted`)과 재정렬기 옵션을 갖고 있으며, 기본은 `echo` + `bge-reranker-v2-m3`입니다. `python generate.py 사진 "질문"`으로도 실행됩니다. |
+| `apps/app_qa.py` | 사진을 올리고 질문하면 답변만 보여주는 Streamlit 화면(8002). |
+| `apps/app.py` | 텍스트로 영상을 찾고, 사진으로 건물을 식별해 보는 확인용 Streamlit 화면(8001). |
 
 ### 평가
 | 파일 | 하는 일 |
 |---|---|
-| `draft_evidence.py` | 질문별 정답 근거 청크 후보를 뽑아 `eval_evidence_draft.xlsx`를 만듭니다. |
-| `label_evidence.py` | 문서를 직접 읽고 정한 정답 청크 라벨을 초안에 붙여 `eval_evidence.xlsx`를 만듭니다. |
-| `eval_retrieval.py` | 정답 청크가 1·3위 안에 드는 비율로 검색 방식들을 비교하고 `results/eval_retrieval_results.csv`를 씁니다. 질의 사진의 영상 자신은 DB에서 뺍니다. |
-| `make_splits.py` | 낮 영상 129개를 건물별 비율을 맞춰 train/val/test(64:16:20)로 나눕니다(seed 0~3). 결과는 `splits.csv`. |
-| `eval_spec_retrieval.py` | **명세 평가 ①** 건물 검색 Recall@1/2/4·MRR → `results/eval_spec_retrieval_results.csv` |
-| `eval_spec_qa.py` | **명세 평가 ②** 예/아니오 QA 정확도(EchoSight·Oracle)와 혼동행렬 → `results/eval_spec_qa_results.jsonl`(호출 기록, 다시 돌리면 이어서 실행), `results/eval_spec_qa_summary.csv` (`results/*_v1_prompt.*`는 프롬프트 수정 전 결과) |
-| `make_spec_report.py` | 명세 결과를 슬라이드 42 양식 표(`results/eval_spec_results_table.csv`)와 seed×조건 혼동행렬 그림(`results/eval_spec_confusion.png`)으로 정리합니다. API 호출 없음. |
+| `eval/draft_evidence.py` | 질문별 정답 근거 청크 후보를 뽑아 `data/eval_evidence_draft.xlsx`를 만듭니다. |
+| `eval/label_evidence.py` | 문서를 직접 읽고 정한 정답 청크 라벨을 초안에 붙여 `data/eval_evidence.xlsx`를 만듭니다. |
+| `eval/eval_retrieval.py` | 정답 청크가 1·3위 안에 드는 비율로 검색 방식들을 비교하고 `results/eval_retrieval_results.csv`를 씁니다. 질의 사진의 영상 자신은 DB에서 뺍니다. |
+| `eval/make_splits.py` | 낮 영상 129개를 건물별 비율을 맞춰 train/val/test(64:16:20)로 나눕니다(seed 0~3). 결과는 `data/splits.csv`. |
+| `eval/eval_spec_retrieval.py` | **명세 평가 ①** 건물 검색 Recall@1/2/4·MRR → `results/eval_spec_retrieval_results.csv` |
+| `eval/eval_spec_qa.py` | **명세 평가 ②** 예/아니오 QA 정확도(EchoSight·Oracle)와 혼동행렬 → `results/eval_spec_qa_results.jsonl`(호출 기록, 다시 돌리면 이어서 실행), `results/eval_spec_qa_summary.csv` (`results/*_v1_prompt.*`는 프롬프트 수정 전 결과) |
+| `eval/make_spec_report.py` | 명세 결과를 슬라이드 42 양식 표(`results/eval_spec_results_table.csv`)와 seed×조건 혼동행렬 그림(`results/eval_spec_confusion.png`)으로 정리합니다. API 호출 없음. |
 
 ## 실행 순서
 1. Docker로 Chroma 서버(1.0.0)를 `localhost:8000`에 띄웁니다.
-2. `python nlp_project_dataset_picturechange.py` → `build_chroma.py` → `build_dino.py` → `build_docs.py`
-3. 환경변수 `ANTHROPIC_API_KEY`를 설정하고 `python -m streamlit run app_qa.py --server.port 8002`
+2. `python build/nlp_project_dataset_picturechange.py` → `build/build_chroma.py` → `build/build_dino.py` → `build/build_docs.py` (명령은 프로젝트 루트에서 `python 경로`로 실행하는 것을 기준으로 적었습니다)
+3. 환경변수 `ANTHROPIC_API_KEY`를 설정하고 `python -m streamlit run apps/app_qa.py --server.port 8002`
 
 모든 스크립트의 첫 줄이 `import pandas`인 것은 Windows에서 torch보다 먼저 불러오지 않으면 크래시가 나기 때문입니다.
 Python 패키지 버전은 `requirements.txt`(개발 환경에서 쓴 버전 그대로, 새 환경에서 설치해 본 적은 없음)에 있습니다. 사용한 모델은 CLIP(clip-ViT-B-32), bge-m3, DINOv2-base, bge-reranker-v2-m3이며 처음 실행할 때 내려받습니다.
@@ -81,7 +81,7 @@ Python 패키지 버전은 `requirements.txt`(개발 환경에서 쓴 버전 그
 - **모델**: 건물 식별은 DINOv2-base 임베딩, 재정렬기는 `bge-reranker-v2-m3`(추가 학습 없음), 답변은 `claude-haiku-5-5`(명세의 GPT-4 대신). 모든 설정은 기존 값을 그대로 썼고 val로 고른 값이 없습니다. val 영상은 DB에만 들어갑니다.
 - 점수는 질의 프레임별로 계산한 뒤 영상 단위로 평균합니다.
 
-### ① 건물 검색 (`eval_spec_retrieval.py`)
+### ① 건물 검색 (`eval/eval_spec_retrieval.py`)
 DB는 train+val 프레임, 질의는 test 프레임. 건물별로 가장 비슷한 프레임의 유사도(max-pooling)로 8개 건물 순위를 매깁니다.
 
 | seed | R@1 | R@2 | R@4 | MRR |
@@ -95,7 +95,7 @@ DB는 train+val 프레임, 질의는 test 프레임. 건물별로 가장 비슷�
 
 test 영상은 seed마다 26개(질의 프레임 265~284개)입니다. 이 표의 건물 순위는 위 파이프라인의 "상위 3프레임 평균+softmax"가 아니라 명세대로 max-pooling이므로, 앞의 LOO 수치와 직접 비교할 수 없습니다.
 
-### ② 예/아니오 QA (`eval_spec_qa.py`)
+### ② 예/아니오 QA (`eval/eval_spec_qa.py`)
 test 영상마다 inside·outside 질문 2개(정답은 예/아니오). context는 `place_description`만 쓰고 `building_docs`는 쓰지 않습니다. 프롬프트는 가이드 슬라이드 35~37의 문구를 그대로 썼습니다(SYSTEM "항상 사용자가 묻는 질문에만 답합니다", 예·아니오 few-shot 각 1개, 각 질문 뒤 "설명 없이 '예' 또는 '아니오'로만 답하세요." + `Short answer is:`). 가이드의 temperature 0은 `claude-haiku-5-5`가 `temperature`를 받지 않아(400 오류) 적용하지 못했습니다.
 
 | 조건 | context |
@@ -113,7 +113,7 @@ test 영상마다 inside·outside 질문 2개(정답은 예/아니오). context�
 | 3 | 0.718 | 0.827 | 0.776 |
 | **평균±표준편차** | **0.734±0.055** | **0.827±0.072** | 0.772 |
 
-슬라이드 42 양식으로 R@1·R@2·R@4·MRR과 함께 한 표에 모은 것은 `results/eval_spec_results_table.csv`, seed별·조건별 2×2 혼동행렬 그림은 `results/eval_spec_confusion.png`입니다(`make_spec_report.py`가 API 호출 없이 만듦).
+슬라이드 42 양식으로 R@1·R@2·R@4·MRR과 함께 한 표에 모은 것은 `results/eval_spec_results_table.csv`, seed별·조건별 2×2 혼동행렬 그림은 `results/eval_spec_confusion.png`입니다(`eval/make_spec_report.py`가 API 호출 없이 만듦).
 
 혼동행렬(4개 seed 합산, 행=정답·열=예측. EchoSight는 사진×질문 단위, Oracle은 질문 단위이며 같은 영상이 여러 seed의 test에 들어가면 중복해서 셉니다):
 
@@ -138,15 +138,15 @@ test 영상마다 inside·outside 질문 2개(정답은 예/아니오). context�
 - 마리아관은 낮 영상이 6개뿐이라 test에 1개만 들어갑니다. 건물별 점수는 계산하지 않았고, 계산하더라도 마리아관은 영상 1개에 좌우됩니다.
 - 사진 3장, 설명 1개, 건물 확률/재정렬기 가중치 0.5는 임의로 정한 값이며 val로 비교하지 않았습니다.
 - temperature를 0으로 고정하지 못했고 같은 프롬프트로 반복 실행한 적도 없어서, 호출 무작위성에서 오는 오차는 재지 못했습니다. 위 표는 한 번 실행한 값입니다.
-- 실행: `python make_splits.py`(이미 `splits.csv` 있음) → `python eval_spec_retrieval.py` → `python eval_spec_qa.py [seed ...]` → `python make_spec_report.py`. 앞의 두 평가는 Chroma가 켜져 있어야 하고, QA는 `ANTHROPIC_API_KEY`가 필요합니다(전체 약 입력 57만·출력 7만 토큰). 다시 돌리면 `results/eval_spec_qa_results.jsonl`에 이미 있는 호출은 건너뜁니다.
+- 실행: `python eval/make_splits.py`(이미 `data/splits.csv` 있음) → `python eval/eval_spec_retrieval.py` → `python eval/eval_spec_qa.py [seed ...]` → `python eval/make_spec_report.py`. 앞의 두 평가는 Chroma가 켜져 있어야 하고, QA는 `ANTHROPIC_API_KEY`가 필요합니다(전체 약 입력 57만·출력 7만 토큰). 다시 돌리면 `results/eval_spec_qa_results.jsonl`에 이미 있는 호출은 건너뜁니다.
 
 ## 보충 분석 (명세 이전 평가)
 아래는 질문이 예/아니오로 바뀌기 전 질문 126개를 기준으로 한 이전 평가로, 현재 질문·라벨과 수치가 다릅니다(최신 라벨 기준 재측정 결과는 `results/eval_retrieval_results.csv`).
 - **건물 식별**: 영상 하나를 빼고 맞히는 방식(LOO)으로 프레임 기준 82.7%(8개 건물). 같은 데이터로 방식을 골랐고 새 장소에서의 정확도는 아닙니다.
 - **검색**: 정답 청크가 있는 126개 질문에서 1위 적중률 `filter` 54.5% → `echo`+재정렬기 68.8%. 표본이 작아 오차가 약 ±4%p이고, 정답 청크는 문서를 읽고 직접 붙인 라벨입니다.
-- 청크 정답이 있는 행의 답변 정확도(`eval_answers.py`, `results/eval_answers_results.jsonl`)도 따로 측정했지만 이 README에는 정리하지 않았습니다.
+- 청크 정답이 있는 행의 답변 정확도(`eval/eval_answers.py`, `results/eval_answers_results.jsonl`)도 따로 측정했지만 이 README에는 정리하지 않았습니다.
 
 ## 알려진 한계
 - 밤비노관·비르투스관은 질문·정답이 거의 비어 있어 평가에서 사실상 빠져 있습니다.
-- 문서에 정답이 없는 질문이 일부 있습니다(`eval_evidence.xlsx`에서 `없음`으로 표시).
-- `app_qa.py`는 답변만 보여주며 식별된 건물이나 근거 청크는 표시하지 않습니다.
+- 문서에 정답이 없는 질문이 일부 있습니다(`data/eval_evidence.xlsx`에서 `없음`으로 표시).
+- `apps/app_qa.py`는 답변만 보여주며 식별된 건물이나 근거 청크는 표시하지 않습니다.
