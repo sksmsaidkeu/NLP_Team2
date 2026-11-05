@@ -96,7 +96,7 @@ if __name__ == "__main__":
                                  hit1=ids[0] in gold[n], hit3=any(i in gold[n] for i in ids)))
     res = pd.DataFrame(rows)
     if not only:
-        res.to_csv(os.path.join(HERE, "eval_retrieval_results.csv"), index=False, encoding="utf-8-sig")
+        res.to_csv(os.path.join(HERE, "results", "eval_retrieval_results.csv"), index=False, encoding="utf-8-sig")
 
     per_row = res.groupby(["방법", "row"], sort=False).agg(hit1=("hit1", "mean"), hit3=("hit3", "mean"), 유형=("유형", "first"), 확신도=("확신도", "first")).reset_index()
     print(f"행 {len(ev)}개 (확신 {(ev.확신도 == '확신').sum()}, 애매 {(ev.확신도 == '애매').sum()}), 행당 사진 3장. 식별 정확도 {res.id_ok.mean():.1%}")

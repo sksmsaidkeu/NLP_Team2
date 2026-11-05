@@ -1,0 +1,41 @@
+1. 영상 단위로 장소 categroy 및 장소설명, query 질의 응답이 태그된 데이터 (영상 개수 129개, 낮 데이터만 사용)
+2. 해당 영상을 image 단위로 쪼개서 category, 장소설명을 부여한 데이터베이스 형성
+3. 해당 데이터를 바탕으로 rag 시스템 구축
+4. 데이터를 구축할때 영상 단위 건물 카테고리에 대한 stratified train/test set을 4개 seed에 대해 형성, 각각의 seed에 대해 각자 부여된 모델 설정에 대해서 다음을 계산
+ 4-1. train set을 train/val로 분할, train set은 database 구축 및 모델 학습에 사용, val set은 rag 시스템을 학습시키는 과정에서 loss가 제일 좋은 모델을 선정할때 사용 (이때도 영상 단위 분할 적용)
+ 4-2. test set에 대한 건물 카테고리 retrive 성능 측정 (Recall@K, MRR)
+        - train set의 db만을 사용 (val도 사용)
+        - k=1, k=2, k=4
+        - 이때 각 장소별로 유사도에 대한 maxpooling을 수행, 이 정보를 바탕으로 rank를 매긴다음 recall@k, MRR을 보고
+        - 이러면 영상에 대해서 여러개의 성능 지표가 형성 -> 영상 단위 평균 값을 append
+        - random 기준선과 비교해서 유의미하게 학습 됐는지 확인
+ 4-3. test set에 대한 query 질의 성능 측정 (Accuracy, Confusion Matrix(시각화))
+        - 아까 구축해둔 시스템에 train set, test set의 db를 추가
+        - 아까 시스템을 사용해서 test set에 대한 답변 생성, 이때 매우 중요한 것 -> 절대로 query 질의문이 태그된 자기 자신의 영상이 절대로 retrive되지 않도록 조건을 걸것
+        - EchoSight로 retrive 된 항목에 대한 측정
+        - ground truth (Oracle) 를 llm에 주고 해당 항목을 측정
+        - oracle은 ground truth 영상과 text를 그대로 제공하는 것을 의미함.
+        - 이러면 영상에 대해서 여러개의 성능 지표가 형성 -> 영상 단위 평균 값을 append
+5. 이러면 4개 seed에 대한 test set의 1) recall@k, mrr 2) accuracy, confusion matrix가 형성됨
+6. 해당 4 seed데이터에 대한 평균 및 표준 편차를 보고
+
+
+답변에 사용할 LLM
+GPT-4, temperture=0 (echosight 원본 코드 참고)
+
+SYSTEM: 당신은 항상 사용자가 묻는 질문에만 답합니다. 그 외의 것에는 답하지 마세요.
+
+USER: Context: 알프스산맥의 남쪽은 코모 호수와 맞닿아 있다.
+Question: 이 산은 코모 호수 안에 있거나 그 옆에 있나요?
+설명 없이 '예' 또는 '아니오'로만 답하세요.
+Short answer is: 예
+
+Context: 에펠탑은 프랑스 파리의 센강 근처에 있다.
+Question: 이 건물은 이탈리아 로마에 있나요?
+설명 없이 '예' 또는 '아니오'로만 답하세요.
+Short answer is: 아니오
+
+Context: <CONTEXT>
+Question: <QUESTION>
+설명 없이 '예' 또는 '아니오'로만 답하세요.
+Short answer is:
