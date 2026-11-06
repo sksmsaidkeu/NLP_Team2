@@ -1,7 +1,9 @@
-# Only needed to make NEW QA calls: pip install -r requirements.txt -r requirements-qa.txt
+# Needed only to compute new frame embeddings or to make new QA calls:
+#   pip install -r requirements.txt -r requirements-models.txt
 # Versions used in development (Windows 11, Python 3.10, CUDA 12.6); never tried on a fresh machine.
 # For GPU torch, install first: pip install torch==2.11.0 --index-url https://download.pytorch.org/whl/cu126
 torch==2.11.0
 transformers==5.16.1
 sentence-transformers==6.1.0   # bge-reranker-v2-m3 (CrossEncoder); the model is downloaded on first use
-anthropic==1.15.0              # needs the ANTHROPIC_API_KEY environment variable
+pillow>=10.0                   # reading frame images
+anthropic==1.15.0              # claude-* generators; needs the ANTHROPIC_API_KEY environment variable

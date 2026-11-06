@@ -7,32 +7,52 @@
 
 ## 실행 방법
 ```
-pip install -r requirements.txt       # 결과 확인에 필요한 패키지 4개 (QA를 새로 호출할 때만 requirements-qa.txt도 설치)
-python eval/evaluate_retrieval.py     # 명세 ① 건물 검색 → results/retrieval_results.csv
-python eval/evaluate_qa.py            # 명세 ② 예/아니오 QA → results/qa_summary.csv  (환경변수 ANTHROPIC_API_KEY 필요)
+pip install -r requirements.txt       # 결과 확인에 필요한 패키지 4개
+python eval/evaluate_retrieval.py     # 명세 ① 건물 검색 → results/retrieval_dinov2.csv
+python eval/evaluate_qa.py            # 명세 ② 예/아니오 QA → results/qa_summary_dinov2_claude-haiku-5-5.csv
 python eval/make_report.py            # 슬라이드 42 양식 표와 혼동행렬 그림 (API 호출 없음)
 ```
-- `evaluate_qa.py`는 `results/qa_calls.jsonl`에 이미 있는 호출을 건너뜁니다. 지금 저장소 상태에서 그대로 실행하면 API를 호출하지 않고(API 키·torch·anthropic 불필요) 저장된 기록으로 요약만 다시 계산하며, 몇 초 걸립니다. 처음부터 다시 호출하려면 `pip install -r requirements-qa.txt`를 하고 이 파일을 지우세요(입력 약 57만·출력 약 7만 토큰, `ANTHROPIC_API_KEY` 필요).
+- 모든 스크립트는 `--embeddings 이름`(기본 `dinov2`)을 받고, QA·리포트는 `--generator 이름`(기본 `claude-haiku-5-5`)도 받습니다. 결과 파일 이름에 이 두 이름이 붙어서 모델마다 결과가 따로 저장됩니다.
+- `evaluate_qa.py`는 `results/qa_calls_<임베딩>_<생성기>.jsonl`에 이미 있는 호출을 건너뜁니다. 지금 저장소 상태에서 그대로 실행하면 API를 호출하지 않고(API 키·torch·anthropic 불필요) 저장된 기록으로 요약만 다시 계산하며, 몇 초 걸립니다. 처음부터 다시 호출하려면 `pip install -r requirements-models.txt`를 하고 이 파일을 지우세요(입력 약 57만·출력 약 7만 토큰, `ANTHROPIC_API_KEY` 필요).
 - `evaluate_retrieval.py`는 API가 필요 없습니다.
 - 분할은 `python eval/make_splits.py`로 다시 만들 수 있고 결과(`data/splits.csv`)는 같습니다.
 - 스크립트 첫머리에서 pandas를 torch보다 먼저 불러오는 것은 의도입니다. Windows에서 순서가 바뀌면 프로세스가 비정상 종료되는 문제가 있었습니다.
 
+## 다른 모델로 시험하기
+같은 분할·지표·프롬프트로 부품만 바꿔 비교할 수 있게 두 곳을 열어 두었습니다. 결과를 낼 때는 **어느 부품이 바뀌었는지** 함께 적어 주세요.
+
+**① 다른 이미지 인코더** (`eval/image_embedding.py`)
+1. `(PIL 이미지 목록) -> (N, D) 단위벡터` 함수를 만들어 파일 맨 아래 `ENCODERS`에 이름과 함께 등록합니다. 행마다 길이가 1이어야 합니다(평가가 내적을 코사인 유사도로 쓰며, 아니면 불러올 때 오류가 납니다).
+2. 프레임 이미지는 저장소에 없으므로 같은 프레임을 꺼냅니다: `git checkout c65f330 -- data/frames data/frames.csv`
+3. `python eval/make_frame_embeddings.py --model 이름` → `data/frame_embeddings_이름.npz`
+4. `python eval/evaluate_retrieval.py --embeddings 이름`, `python eval/evaluate_qa.py --embeddings 이름`
+
+**② 다른 답변 생성기** (`eval/generators.py`)
+1. `generate(system_prompt, user_prompt)`를 가진 클래스를 만들고 `make_generator`에 이름을 추가합니다(파일 맨 위 설명 참고). 로컬 모델은 `max_workers = 1`.
+2. `python eval/evaluate_qa.py --generator 이름`
+
+**아직 열려 있지 않은 것**: 사진을 입력으로 받는 재정렬기(지금은 질문과 설명만 받음), 학습 코드. 학습한 모델은 seed마다 train 영상으로만 따로 학습하고 val로만 설정을 골라야 합니다(test 영상은 어떤 seed의 학습에도 쓰지 않음).
+
 ## 코드 읽는 순서
-1. `eval/data_loading.py` — 파일 읽기 함수와 `building_max_scores`(건물마다 가장 비슷한 프레임의 유사도). 두 평가가 공통으로 씁니다.
+1. `eval/data_loading.py` — 파일 읽기 함수, 결과 파일 이름 규칙(`result_path`), `building_max_scores`(건물마다 가장 비슷한 프레임의 유사도). 모든 스크립트가 공통으로 씁니다.
 2. `eval/evaluate_retrieval.py` — `evaluate_seed`가 seed 하나의 점수를 계산하고, `main`이 seed 평균·표준편차를 냅니다.
 3. `eval/evaluate_qa.py` — 위에서 아래로 읽으면 됩니다.
-   `build_prompt`(프롬프트) → `building_probabilities`(사진 → 건물 확률) → `pick_description`(후보 중 설명 1개 선택) → `build_jobs`(oracle·echo 호출 목록) → `call_model`(API 한 건) → `summarize`(정확도·혼동행렬) → `main`.
+   `build_prompt`(프롬프트) → `building_probabilities`(사진 → 건물 확률) → `pick_description`(후보 중 설명 1개 선택) → `build_jobs`(oracle·echo 호출 목록) → `call_model`(생성기 한 건) → `summarize`(정확도·혼동행렬) → `main`.
 4. `eval/make_report.py` — 결과 파일을 표와 그림으로 정리합니다.
+5. 새 모델을 붙일 때: `eval/image_embedding.py`, `eval/make_frame_embeddings.py`, `eval/generators.py`.
 
 ## 폴더 구성
 | 위치 | 내용 |
 |---|---|
-| `eval/data_loading.py` | `data/`를 읽는 공통 함수와 건물별 최대 유사도 계산 |
+| `eval/data_loading.py` | `data/`를 읽는 공통 함수, 결과 파일 이름 규칙, 건물별 최대 유사도 계산 |
+| `eval/image_embedding.py` | 정사각 패딩과 이미지 인코더(DINOv2). 새 인코더를 `ENCODERS`에 등록 |
+| `eval/make_frame_embeddings.py` | 프레임 이미지 → `data/frame_embeddings_<이름>.npz` |
+| `eval/generators.py` | 답변 생성기(Claude). 새 생성기를 `make_generator`에 추가 |
 | `eval/reranker.py` | bge-reranker-v2-m3로 질문–설명 관련도를 계산하는 `rerank_scores`와 0~1 정규화 `minmax` |
 | `eval/make_splits.py` | 영상 129개를 건물 비율을 유지해 train/val/test로 나눔(seed 0~3) |
 | `eval/evaluate_retrieval.py` | 명세 ① 건물 검색 평가 |
 | `eval/evaluate_qa.py` | 명세 ② QA 평가(EchoSight·Oracle 조건) |
-| `eval/make_report.py` | 결과 표(`results_table.csv`)와 혼동행렬 그림(`confusion_matrices.png`) 생성 |
+| `eval/make_report.py` | 결과 표와 혼동행렬 그림 생성 |
 | `data/` | 평가 입력 파일(아래 표) |
 | `results/` | 평가 결과 파일(아래 표) |
 | `docs/` | 명세서, 가이드 슬라이드, 참고 논문 PDF(PDF는 저장소에서 제외) |
@@ -41,19 +61,19 @@ python eval/make_report.py            # 슬라이드 42 양식 표와 혼동행�
 | 파일 | 내용 |
 |---|---|
 | `splits.csv` | 영상 129개의 건물(`building`)과 seed0~3별 역할(train/val/test). 영상 ID는 `건물/…/번호.mp4` 형식(예: `김수환/5547.mp4`) |
-| `frame_embeddings.npz` | 영상에서 뽑은 프레임 1364장의 DINOv2-base 임베딩(`embeddings`, 1364×1536, 단위벡터), `video_id`, `frame_idx` |
+| `frame_embeddings_dinov2.npz` | 영상에서 뽑은 프레임 1364장의 DINOv2-base 임베딩(`embeddings`, 1364×1536, 단위벡터), `video_id`, `frame_idx` |
 | `video_descriptions.csv` | 영상별 건물, `place_description`, inside·outside 질문과 정답(예/아니오) |
 
-두 파일(`frame_embeddings.npz`, `video_descriptions.csv`)은 원본 영상·`metadata.xlsx`·데모의 DB에서 한 번 내보낸 것입니다. 이 저장소에는 내보내는 코드가 없습니다.
+`video_descriptions.csv`는 `metadata.xlsx`에서 한 번 내보낸 것이라 이 저장소에는 만드는 코드가 없습니다. 임베딩은 위 "다른 모델로 시험하기"의 스크립트로 다시 만들 수 있습니다(프레임 이미지 필요).
 
-### `results/` 파일
+### `results/` 파일 (`<임베딩>`은 기본 `dinov2`, `<생성기>`는 기본 `claude-haiku-5-5`)
 | 파일 | 보여주는 것 |
 |---|---|
-| `retrieval_results.csv` | 명세 ① seed별 Recall@1/2/4·MRR, 평균, 표준편차, 무작위 기준선 |
-| `qa_summary.csv` | 명세 ② seed별 Acc(EchoSight)·Acc(Oracle)과 EchoSight가 고른 설명의 건물 정답률 |
-| `qa_calls.jsonl` | 명세 ② 호출 한 건당 기록(영상·질문·정답·예측·고른 설명·토큰). 요약과 혼동행렬의 원자료 |
-| `results_table.csv` | 위 두 요약을 슬라이드 42 양식으로 합친 표(Seed 1~4, 평균, 표준편차, 기준선) |
-| `confusion_matrices.png` | seed별·조건별(EchoSight·Oracle) 2×2 혼동행렬 그림 8개 |
+| `retrieval_<임베딩>.csv` | 명세 ① seed별 Recall@1/2/4·MRR, 평균, 표준편차, 무작위 기준선 |
+| `qa_summary_<임베딩>_<생성기>.csv` | 명세 ② seed별 Acc(EchoSight)·Acc(Oracle)과 EchoSight가 고른 설명의 건물 정답률 |
+| `qa_calls_<임베딩>_<생성기>.jsonl` | 명세 ② 호출 한 건당 기록(영상·질문·정답·예측·고른 설명·토큰). 요약과 혼동행렬의 원자료 |
+| `results_table_<임베딩>_<생성기>.csv` | 위 두 요약을 슬라이드 42 양식으로 합친 표(Seed 1~4, 평균, 표준편차, 기준선) |
+| `confusion_matrices_<임베딩>_<생성기>.png` | seed별·조건별(EchoSight·Oracle) 2×2 혼동행렬 그림 8개 |
 | `qa_summary_v1_prompt.csv`, `qa_calls_v1_prompt.jsonl` | 프롬프트를 가이드 문구로 고치기 전의 QA 결과(비교용, 공식 결과 아님) |
 
 ## 평가 설정 (`docs/명세서.txt` 기준)
