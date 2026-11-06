@@ -1,16 +1,5 @@
-# 개발·평가에 쓴 환경(Windows 11, Python 3.10) 그대로의 버전. 가상환경에 `pip install -r requirements.txt`
-# torch는 GPU(CUDA 12.6)용 휠을 쓰려면 먼저 다음처럼 설치: pip install torch==2.11.0 --index-url https://download.pytorch.org/whl/cu126
-torch==2.11.0
-transformers==5.16.1
-sentence-transformers==6.1.0   # bge-m3, CLIP 다국어, bge-reranker-v2-m3(CrossEncoder)
-chromadb-client==1.0.21        # 서버는 Docker `chromadb/chroma`(1.0.0)를 localhost:8000에 띄움
-anthropic==1.15.0              # 환경변수 ANTHROPIC_API_KEY 필요
-pandas==2.3.3
-numpy==2.2.6
-openpyxl==3.1.5                # metadata.xlsx 읽기
-scikit-learn==1.7.2            # make_splits.py의 stratified 분할
-pillow==12.0.0
-pillow_heif==1.8.1             # HEIC 사진 변환
-opencv-python-headless==5.0.0.93  # 영상에서 프레임 추출
-streamlit==1.57.0              # app.py, app_qa.py
-matplotlib==3.10.9             # make_spec_report.py 혼동행렬 그림(한글은 Windows의 Malgun Gothic 폰트)
+# Enough to check the results: retrieval eval, splits, summary from the saved QA calls, tables and figures.
+numpy>=1.24
+pandas>=2.0
+scikit-learn>=1.3     # stratified split in make_splits.py
+matplotlib>=3.7       # confusion-matrix figure; Korean font: Malgun Gothic (Windows) / AppleGothic (Mac) / NanumGothic (Linux)

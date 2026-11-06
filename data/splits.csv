@@ -1,4 +1,4 @@
-﻿video_id,character,seed0,seed1,seed2,seed3
+﻿video_id,building,seed0,seed1,seed2,seed3
 김수환/5547.mp4,김수환,train,val,train,test
 김수환/5548.mp4,김수환,train,val,train,val
 김수환/5550.mp4,김수환,train,train,train,train
