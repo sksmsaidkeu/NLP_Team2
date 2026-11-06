@@ -2,3 +2,7 @@ __pycache__/
 *.pdf
 nlp_project_dataset/
 docs/자연어처리 팀플관련 사항.txt
+
+# 프레임 이미지는 옛 커밋에서 필요할 때 복원한다(README "다른 모델로 시험하기")
+data/frames/
+data/frames.csv

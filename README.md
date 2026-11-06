@@ -4,6 +4,7 @@
 실제 동작하는 데모(건물 식별·검색·답변 앱, DB 구축 스크립트)와 이전 보충 분석 코드는 이 저장소에 없고 별도로 보관합니다.
 
 이 저장소의 평가는 Docker·Chroma·DINOv2 모델·원본 영상 없이 `data/`의 파일만으로 재현됩니다. 재정렬기 모델(bge-reranker-v2-m3)만 처음 실행할 때 내려받으며, 호출을 새로 만들 때는 GPU가 없으면 느립니다.
+시험한 환경: Windows 11, Python 3.10. 새 가상환경에서 `requirements.txt`만 설치해 위 "실행 방법"의 4개 명령이 되는 것을 확인했습니다. Mac/Linux, 그리고 `requirements-models.txt`를 새 환경에 설치하는 것은 시험하지 못했습니다.
 
 ## 실행 방법
 ```
@@ -12,7 +13,7 @@ python eval/evaluate_retrieval.py     # 명세 ① 건물 검색 → results/ret
 python eval/evaluate_qa.py            # 명세 ② 예/아니오 QA → results/qa_summary_dinov2_claude-haiku-5-5.csv
 python eval/make_report.py            # 슬라이드 42 양식 표와 혼동행렬 그림 (API 호출 없음)
 ```
-- 모든 스크립트는 `--embeddings 이름`(기본 `dinov2`)을 받고, QA·리포트는 `--generator 이름`(기본 `claude-haiku-5-5`)도 받습니다. 결과 파일 이름에 이 두 이름이 붙어서 모델마다 결과가 따로 저장됩니다.
+- `evaluate_retrieval.py`, `evaluate_qa.py`, `make_report.py`는 `--embeddings 이름`(기본 `dinov2`)을 받고, `evaluate_qa.py`와 `make_report.py`는 `--generator 이름`(기본 `claude-haiku-5-5`)도 받습니다. 결과 파일 이름에 이 두 이름이 붙어서 모델마다 결과가 따로 저장됩니다.
 - `evaluate_qa.py`는 `results/qa_calls_<임베딩>_<생성기>.jsonl`에 이미 있는 호출을 건너뜁니다. 지금 저장소 상태에서 그대로 실행하면 API를 호출하지 않고(API 키·torch·anthropic 불필요) 저장된 기록으로 요약만 다시 계산하며, 몇 초 걸립니다. 처음부터 다시 호출하려면 `pip install -r requirements-models.txt`를 하고 이 파일을 지우세요(입력 약 57만·출력 약 7만 토큰, `ANTHROPIC_API_KEY` 필요).
 - `evaluate_retrieval.py`는 API가 필요 없습니다.
 - 분할은 `python eval/make_splits.py`로 다시 만들 수 있고 결과(`data/splits.csv`)는 같습니다.
@@ -23,9 +24,10 @@ python eval/make_report.py            # 슬라이드 42 양식 표와 혼동행�
 
 **① 다른 이미지 인코더** (`eval/image_embedding.py`)
 1. `(PIL 이미지 목록) -> (N, D) 단위벡터` 함수를 만들어 파일 맨 아래 `ENCODERS`에 이름과 함께 등록합니다. 행마다 길이가 1이어야 합니다(평가가 내적을 코사인 유사도로 쓰며, 아니면 불러올 때 오류가 납니다).
-2. 프레임 이미지는 저장소에 없으므로 같은 프레임을 꺼냅니다: `git checkout c65f330 -- data/frames data/frames.csv`
+2. 프레임 이미지는 저장소에 없으므로 옛 커밋에서 같은 프레임을 꺼냅니다: `git restore --source=c65f330 --worktree -- data/frames data/frames.csv` (작업 폴더에만 복사되고 `.gitignore`에 들어 있어 실수로 커밋되지 않습니다. 약 590MB)
 3. `python eval/make_frame_embeddings.py --model 이름` → `data/frame_embeddings_이름.npz`
 4. `python eval/evaluate_retrieval.py --embeddings 이름`, `python eval/evaluate_qa.py --embeddings 이름`
+   새 임베딩 이름으로 `evaluate_qa.py`를 처음 돌리면 저장된 기록이 없어서 호출이 **새로 약 656건** 생깁니다(기본 생성기 Claude 기준 입력 약 57만 토큰, API 비용 발생). Oracle 호출은 임베딩과 무관하지만 기록이 이름별로 따로 저장되므로 다시 호출합니다.
 
 **② 다른 답변 생성기** (`eval/generators.py`)
 1. `generate(system_prompt, user_prompt)`를 가진 클래스를 만들고 `make_generator`에 이름을 추가합니다(파일 맨 위 설명 참고). 로컬 모델은 `max_workers = 1`.
@@ -37,7 +39,7 @@ python eval/make_report.py            # 슬라이드 42 양식 표와 혼동행�
 1. `eval/data_loading.py` — 파일 읽기 함수, 결과 파일 이름 규칙(`result_path`), `building_max_scores`(건물마다 가장 비슷한 프레임의 유사도). 모든 스크립트가 공통으로 씁니다.
 2. `eval/evaluate_retrieval.py` — `evaluate_seed`가 seed 하나의 점수를 계산하고, `main`이 seed 평균·표준편차를 냅니다.
 3. `eval/evaluate_qa.py` — 위에서 아래로 읽으면 됩니다.
-   `build_prompt`(프롬프트) → `building_probabilities`(사진 → 건물 확률) → `pick_description`(후보 중 설명 1개 선택) → `build_jobs`(oracle·echo 호출 목록) → `call_model`(생성기 한 건) → `summarize`(정확도·혼동행렬) → `main`.
+   `build_prompt`(프롬프트) → `building_probabilities`(사진 → 건물 확률) → `pick_description`(후보 중 설명 1개 선택) → `build_jobs`(oracle·echo 호출 목록) → `call_model`(생성기 한 건) → `run_calls`(병렬 호출과 기록 저장) → `summarize`(정확도·혼동행렬) → `main`.
 4. `eval/make_report.py` — 결과 파일을 표와 그림으로 정리합니다.
 5. 새 모델을 붙일 때: `eval/image_embedding.py`, `eval/make_frame_embeddings.py`, `eval/generators.py`.
 
