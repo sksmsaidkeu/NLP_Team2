@@ -3,6 +3,13 @@ __pycache__/
 nlp_project_dataset/
 docs/자연어처리 팀플관련 사항.txt
 
-# 프레임 이미지는 옛 커밋에서 필요할 때 복원한다(README "다른 모델로 시험하기")
-data/frames/
-data/frames.csv
+# 원본 데이터셋(영상). 프레임 이미지(data/frames/, data/frames.csv)는 저장소에 포함한다
+data/*.zip
+data/김수환관/
+data/니콜스/
+data/다솔관/
+data/도서관/
+data/마리아/
+data/밤비노/
+data/비루투스/
+data/학생회관/
