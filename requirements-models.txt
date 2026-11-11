@@ -7,3 +7,4 @@ transformers==5.16.1
 sentence-transformers==6.1.0   # bge-reranker-v2-m3 (CrossEncoder); the model is downloaded on first use
 pillow>=10.0                   # reading frame images
 anthropic==1.15.0              # claude-* generators; needs the ANTHROPIC_API_KEY environment variable
+opencv-python>=4.8             # cutting frames out of the videos

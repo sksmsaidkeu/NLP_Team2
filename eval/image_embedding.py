@@ -1,16 +1,11 @@
-"""프레임 이미지를 임베딩으로 바꾸는 인코더 모음.
-새 인코더는 `(PIL 이미지 목록) -> (N, D) 단위벡터` 함수를 만들어 맨 아래 ENCODERS에 이름과 함께 등록하면 된다.
-(행마다 길이가 1이어야 한다: 평가가 내적을 코사인 유사도로 쓴다.)
-"""
-from functools import lru_cache
-
+import torch
 import numpy as np
+from transformers import AutoModel, AutoProcessor
+from transformers.dynamic_module_utils import get_class_from_dynamic_module
 from PIL import Image
+from tqdm import tqdm
 
-DINOV2_NAME = "facebook/dinov2-base"
 PAD_COLOR = (255, 255, 255)
-
-
 def pad_square(image, color=PAD_COLOR):
     image = image.convert("RGB")
     side = max(image.size)
@@ -19,28 +14,59 @@ def pad_square(image, color=PAD_COLOR):
     return canvas
 
 
-def unit_rows(matrix):
-    return matrix / np.linalg.norm(matrix, axis=1, keepdims=True)
+
+class EVACLIP:
+    def __init__(self, device="cuda"):
+        self.device = device
+        # "facebook/dinov2-base" 
+        model_name = ["facebook/dinov2-base", "BAAI/EVA-CLIP-8B"][1]
+        model_dtype=[torch.float16, torch.float32][0]
+        self.model_dtype = model_dtype
+        if model_dtype == torch.float32:
+            model_class = get_class_from_dynamic_module("modeling_evaclip.EvaCLIPModel", "BAAI/EVA-CLIP-8B")
+            model_class._no_split_modules = ["EvaCLIPEncoderLayer"]
+        self.model, infos = AutoModel.from_pretrained(
+            model_name,
+            torch_dtype=model_dtype,
+            trust_remote_code=True,
+            output_loading_info=True,
+            device_map="auto" if model_dtype==torch.float32 else None,
+        )
+        print(infos)
+        if hasattr(self.model, "text_projection"):
+            del self.model.text_projection
+        if hasattr(self.model, "text_model"):
+            del self.model.text_model
+
+        #HOTFIX - evaclip8b에 pe 오류있음
+        '''
+        for module in self.model.modules():
+            if hasattr(module, "position_ids"):
+                module.position_ids = torch.arange(module.position_ids.shape[-1]).unsqueeze(0)
+        '''
+        if model_dtype!=torch.float32:
+            self.model.to(device)
+        self.model.eval()
+        self.processor = AutoProcessor.from_pretrained("openai/clip-vit-large-patch14")
+
+    @torch.no_grad()
+    def transform(self, paths, batch_size=64):
+        # paths: 이미지 경로 리스트. 반환: [len(paths), D] 정규화된 numpy 배열 (paths 순서 유지)
+        outputs = []
+        for start in tqdm(range(0, len(paths), batch_size)):
+            images = [pad_square(Image.open(p).convert("RGB")) for p in paths[start:start + batch_size]]
+            inputs = (
+                self.processor(images=images, return_tensors="pt")
+                .pixel_values.to(self.device)
+                .to(self.model_dtype)
+                #.half()
+            )
+            if hasattr(self.model, "encode_image"):
+                scores = self.model.encode_image(inputs)
+            else:
+                scores = self.model(inputs).pooler_output
+            scores = torch.nn.functional.normalize(scores.float(), dim=-1)
+            outputs.append(scores.cpu().numpy())
+        return np.concatenate(outputs, axis=0)
 
 
-@lru_cache(maxsize=None)
-def load_dinov2():
-    import torch
-    from transformers import AutoImageProcessor, AutoModel
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    model = AutoModel.from_pretrained(DINOV2_NAME).to(device).eval()
-    if device == "cuda":
-        model = model.half()
-    return torch, device, AutoImageProcessor.from_pretrained(DINOV2_NAME), model
-
-
-def embed_dinov2(images):
-    """[CLS 벡터 | 패치 평균 벡터]를 각각 단위벡터로 만든 뒤 이어 붙인다 → (N, 1536). 이미지는 정사각 패딩된 상태여야 한다."""
-    torch, device, processor, model = load_dinov2()
-    pixels = processor(images=images, return_tensors="pt")["pixel_values"].to(device, model.dtype)
-    with torch.no_grad():
-        hidden = model(pixel_values=pixels).last_hidden_state.float().cpu().numpy()
-    return np.hstack([unit_rows(hidden[:, 0]), unit_rows(hidden[:, 1:].mean(axis=1))]) / np.sqrt(2)
-
-
-ENCODERS = {"dinov2": embed_dinov2}

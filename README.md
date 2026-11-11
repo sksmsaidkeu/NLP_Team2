@@ -23,9 +23,9 @@ python eval/make_report.py            # 슬라이드 42 양식 표와 혼동행�
 같은 분할·지표·프롬프트로 부품만 바꿔 비교할 수 있게 두 곳을 열어 두었습니다. 결과를 낼 때는 **어느 부품이 바뀌었는지** 함께 적어 주세요.
 
 **① 다른 이미지 인코더** (`eval/image_embedding.py`)
-1. `(PIL 이미지 목록) -> (N, D) 단위벡터` 함수를 만들어 파일 맨 아래 `ENCODERS`에 이름과 함께 등록합니다. 행마다 길이가 1이어야 합니다(평가가 내적을 코사인 유사도로 쓰며, 아니면 불러올 때 오류가 납니다).
-2. 프레임 이미지는 저장소에 없으므로 옛 커밋에서 같은 프레임을 꺼냅니다: `git restore --source=c65f330 --worktree -- data/frames data/frames.csv` (작업 폴더에만 복사되고 `.gitignore`에 들어 있어 실수로 커밋되지 않습니다. 약 590MB)
-3. `python eval/make_frame_embeddings.py --model 이름` → `data/frame_embeddings_이름.npz`
+1. `image_embedding.py`의 `EVACLIP`처럼 `transform(이미지 경로 목록) -> (N, D) 단위벡터` 메서드를 가진 클래스를 만들고, `make_frame_embeddings.py`의 `EVACLIP()` 자리에 씁니다. 행마다 길이가 1이어야 합니다(평가가 내적을 코사인 유사도로 쓰며, 아니면 불러올 때 오류가 납니다).
+2. 영상 파일을 `data/` 아래(하위 폴더 가능)에 둡니다. `make_frame_embeddings.py`가 영상에서 프레임을 영상 길이에 따라 10~20장(1초에 한 장 기준, 각 구간의 가운데) `data/frames/`에 뽑고 `data/frames.csv`를 만듭니다(둘 다 이미 있으면 다시 뽑지 않음). `pip install opencv-python`이 필요합니다.
+3. `python eval/make_frame_embeddings.py --name 이름` → `data/frame_embeddings_이름.npz`
 4. `python eval/evaluate_retrieval.py --embeddings 이름`, `python eval/evaluate_qa.py --embeddings 이름`
    새 임베딩 이름으로 `evaluate_qa.py`를 처음 돌리면 저장된 기록이 없어서 호출이 **새로 약 656건** 생깁니다(기본 생성기 Claude 기준 입력 약 57만 토큰, API 비용 발생). Oracle 호출은 임베딩과 무관하지만 기록이 이름별로 따로 저장되므로 다시 호출합니다.
 
@@ -47,8 +47,8 @@ python eval/make_report.py            # 슬라이드 42 양식 표와 혼동행�
 | 위치 | 내용 |
 |---|---|
 | `eval/data_loading.py` | `data/`를 읽는 공통 함수, 결과 파일 이름 규칙, 건물별 최대 유사도 계산 |
-| `eval/image_embedding.py` | 정사각 패딩과 이미지 인코더(DINOv2). 새 인코더를 `ENCODERS`에 등록 |
-| `eval/make_frame_embeddings.py` | 프레임 이미지 → `data/frame_embeddings_<이름>.npz` |
+| `eval/image_embedding.py` | 이미지 인코더(EVA-CLIP). 새 인코더는 같은 형태의 클래스로 추가 |
+| `eval/make_frame_embeddings.py` | 영상 → 프레임 이미지·`data/frames.csv` → `data/frame_embeddings_<이름>.npz` |
 | `eval/generators.py` | 답변 생성기(Claude). 새 생성기를 `make_generator`에 추가 |
 | `eval/reranker.py` | bge-reranker-v2-m3로 질문–설명 관련도를 계산하는 `rerank_scores`와 0~1 정규화 `minmax` |
 | `eval/make_splits.py` | 영상 129개를 건물 비율을 유지해 train/val/test로 나눔(seed 0~3) |
